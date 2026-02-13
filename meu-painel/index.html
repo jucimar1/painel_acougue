@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Açougue - Versão Offline para TV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0d1117; 
+            color: white; 
+            margin: 0;
+            padding: 0;
+        }
+        .preco-valor { 
+            font-family: 'Oswald', sans-serif; 
+            font-weight: bold;
+        }
+        /* === MONITOR (TV) === */
+        #monitor {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: #000;
+            overflow: hidden;
+        }
+        #monitor::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/images/fundo.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.8;
+            z-index: -1;
+        }
+        #monitor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: rgba(0,0,0,0.7);
+            z-index: 10;
+        }
+        #monitor-logo {
+            width: 180px;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+        #monitor-titulo {
+            font-size: 4.5rem;
+            font-weight: 900;
+            color: #ff4500;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: right;
+            flex: 1;
+            margin: 0 40px 0 20px;
+        }
+        #monitor-data {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: white;
+            margin-top: 10px;
+        }
+        #mon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            padding: 40px;
+            justify-content: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 3px solid #ff4500;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: scale(1.05);
+            border-color: #ff6b35;
+        }
+        .card h3 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin: 0 0 15px 0;
+            color: #fff;
+            text-transform: uppercase;
+        }
+        .card .preco {
+            font-size: 4.2rem;
+            font-weight: 900;
+            color: #ff4500;
+            margin: 10px 0;
+        }
+        .card .preco span {
+            font-size: 1.8rem;
+            vertical-align: middle;
+        }
+        #monitor-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 10000;
+            display: none;
+        }
+        /* === GESTOR (ADMIN) === */
+        #admin-panel {
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        button {
+            font-weight: bold;
+            border-radius: 8px;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .btn-large {
+            padding: 16px 24px;
+            font-size: 1.1rem;
+        }
+        .btn-orange { background: #f97316; color: white; }
+        .btn-blue { background: #3b82f6; color: white; }
+        .btn-gray { background: #444; color: white; }
+        input[type="text"] {
+            font-size: 1.2rem;
+            padding: 14px;
+            border-radius: 8px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            color: white;
+        }
+        #lista-itens div {
+            padding: 14px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #1e293b;
+        }
+        @media (min-width: 1024px) {
+            .card { min-width: 300px; }
+            #monitor-titulo { font-size: 5.5rem; }
+            #monitor-data { font-size: 3rem; }
+            .card h3 { font-size: 2.5rem; }
+            .card .preco { font-size: 4.8rem; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- PLAYER DE VÍDEO (MONITOR) -->
+    <video id="monitor-video" muted></video>
+
+    <!-- GESTOR ADM -->
+    <div id="admin-panel">
+        <header class="flex justify-between items-center border-b border-gray-700 pb-4 mb-6">
+            <h1 class="text-3xl font-black text-orange-500 italic uppercase">Gestão de Açougue</h1>
+            <div class="flex gap-3">
+                <button onclick="baixarDados()" class="btn-gray btn-large">ATUALIZAR LISTA</button>
+                <button onclick="iniciarMonitor()" class="btn-blue btn-large">INICIAR TV</button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-gray-900 p-6 rounded-xl border border-gray-800">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-orange-500 font-bold text-xl uppercase">Adicionar Corte</h3>
+                    <select id="filtroTipo" onchange="baixarDados()" class="bg-orange-600 text-white font-bold p-2 rounded text-base uppercase">
+                        <option value="bovino">Bovino</option>
+                        <option value="suino">Suíno</option>
+                    </select>
+                </div>
+                
+                <div class="space-y-4">
+                    <input id="prodNome" type="text" placeholder="Nome da Carne" class="w-full">
+                    <input id="prodPreco" type="text" placeholder="Preço (0,00)" class="w-full">
+                    <button id="btn-salvar" onclick="adicionarOferta()" class="w-full bg-orange-600 p-4 rounded font-black uppercase text-lg hover:bg-orange-700">Salvar Localmente</button>
+                </div>
+                
+                <div id="lista-itens" class="mt-6 space-y-3"></div>
+            </div>
+
+            <div class="bg-gray-900 p-6 rounded-xl border border-gray-800">
+                <h3 class="text-blue-500 font-bold text-xl uppercase mb-4">Mídias do Monitor</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Vídeo Promocional</label>
+                        <div class="flex gap-3">
+                            <input id="videoInput" type="text" value="assets/videos/churras.mp4" class="flex-grow">
+                            <button onclick="abrirSelecaoArquivo()" class="btn-gray">PROCURAR</button>
+                            <button onclick="reproduzirVideoNoMonitor()" class="btn-blue">REPRODUZIR</button>
+                        </div>
+                    </div>
+                    <video id="preview-video" class="w-full h-40 bg-black rounded-lg" muted autoplay loop></video>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Imagem de Fundo</label>
+                        <div class="flex gap-3">
+                            <input id="fundoInput" type="text" value="assets/images/fundo.jpg" class="flex-grow">
+                            <button onclick="abrirSelecaoFundo()" class="btn-gray">PROCURAR</button>
+                            <button onclick="testarMidia('fundo')" class="btn-gray">VER</button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Logo do Supermercado</label>
+                        <div class="flex gap-3">
+                            <input id="logoInput" type="text" value="assets/logo.png" class="flex-grow">
+                            <button onclick="abrirSelecaoLogo()" class="btn-gray">PROCURAR</button>
+                            <button onclick="testarMidia('logo')" class="btn-gray">VER</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MONITOR DE EXIBIÇÃO (TV) -->
+    <div id="monitor">
+        <div id="monitor-header">
+            <img id="monitor-logo" src="assets/logo.png" alt="Logo">
+            <div>
+                <h2 id="monitor-titulo">OFERTAS <span id="mon-titulo-tipo">BOVINO</span></h2>
+                <p id="monitor-data">13/02/2026</p>
+            </div>
+        </div>
+        <div id="mon-grid"></div>
+    </div>
+
+    <script>
+        let ofertasAtuais = [];
+        const TEMPO_EXIBICAO = 15000;
+        let indiceAtual = 0;
+
+        // --- SALVAR LOCALMENTE ---
+        function salvarLocalmente() {
+            localStorage.setItem('ofertasAtuais', JSON.stringify(ofertasAtuais));
+        }
+
+        function carregarLocalmente() {
+            const dados = localStorage.getItem('ofertasAtuais');
+            if (dados) {
+                try {
+                    ofertasAtuais = JSON.parse(dados);
+                } catch (e) {
+                    console.error("Erro ao carregar dados:", e);
+                    ofertasAtuais = [];
+                }
+            }
+        }
+
+        // --- CARREGAR DADOS INICIAIS ---
+        function baixarDados() {
+            ofertasAtuais = [
+                { nome: "Costela", preco: "19,99" },
+                { nome: "Picanha", preco: "29,99" },
+                { nome: "Filé Mignon", preco: "39,99" },
+                { nome: "Alcatra", preco: "24,99" }
+            ];
+            renderizarListaAdm();
+        }
+
+        // --- ADICIONAR CORTE ---
+        function adicionarOferta() {
+            const nome = document.getElementById('prodNome').value.trim();
+            const preco = document.getElementById('prodPreco').value.trim();
+            if (!nome || !preco) return alert("⚠️ Preencha Nome e Preço!");
+            ofertasAtuais.push({ nome, preco });
+            salvarLocalmente();
+            renderizarListaAdm();
+            document.getElementById('prodNome').value = "";
+            document.getElementById('prodPreco').value = "";
+        }
+
+        // --- EXCLUIR CORTE ---
+        function excluir(i) {
+            if (!confirm("Excluir este corte?")) return;
+            ofertasAtuais.splice(i, 1);
+            salvarLocalmente();
+            renderizarListaAdm();
+        }
+
+        // --- EDITAR CORTE ---
+        function editarItem(i) {
+            const item = ofertasAtuais[i];
+            document.getElementById('prodNome').value = item.nome;
+            document.getElementById('prodPreco').value = item.preco;
+            ofertasAtuais.splice(i, 1);
+            renderizarListaAdm();
+            const btn = document.getElementById('btn-salvar');
+            btn.innerText = "ATUALIZAR";
+            btn.onclick = function() {
+                const nome = document.getElementById('prodNome').value.trim();
+                const preco = document.getElementById('prodPreco').value.trim();
+                if (!nome || !preco) return alert("Preencha todos os campos!");
+                ofertasAtuais.splice(i, 0, { nome, preco });
+                salvarLocalmente();
+                renderizarListaAdm();
+                document.getElementById('prodNome').value = "";
+                document.getElementById('prodPreco').value = "";
+                btn.innerText = "Salvar Localmente";
+                btn.onclick = adicionarOferta;
+            };
+        }
+
+        // --- RENDERIZAR LISTA ---
+        function renderizarListaAdm() {
+            const container = document.getElementById('lista-itens');
+            if (ofertasAtuais.length === 0) {
+                container.innerHTML = '<div class="text-gray-400 italic">Nenhum corte cadastrado.</div>';
+                return;
+            }
+            container.innerHTML = ofertasAtuais.map((item, i) => `
+                <div class="bg-gray-800 p-4 rounded flex justify-between items-center">
+                    <span class="text-lg"><strong>${item.nome}</strong> — R$ ${item.preco}</span>
+                    <div class="flex gap-2">
+                        <button onclick="editarItem(${i})" class="bg-yellow-600 px-3 py-1 rounded text-sm">Editar</button>
+                        <button onclick="excluir(${i})" class="bg-red-600 px-3 py-1 rounded text-sm">Remover</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- TESTAR MÍDIA ---
+        function testarMidia(tipo) {
+            const val = tipo === 'video' ? document.getElementById('videoInput').value : 
+                       tipo === 'fundo' ? document.getElementById('fundoInput').value : 
+                       document.getElementById('logoInput').value;
+            if (tipo === 'video') {
+                document.getElementById('preview-video').src = val;
+            } else if (tipo === 'fundo') {
+                document.getElementById('monitor').style.backgroundImage = `url('${val}')`;
+            } else if (tipo === 'logo') {
+                document.getElementById('monitor-logo').src = val;
+            }
+        }
+
+        // --- SELEÇÃO DE ARQUIVO ---
+        function abrirSelecaoArquivo() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file || !file.type.startsWith('video/')) return;
+                document.getElementById('videoInput').value = URL.createObjectURL(file);
+                testarMidia('video');
+            };
+            input.click();
+        }
+
+        function abrirSelecaoFundo() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file || !file.type.startsWith('image/')) return;
+                document.getElementById('fundoInput').value = URL.createObjectURL(file);
+                testarMidia('fundo');
+            };
+            input.click();
+        }
+
+        function abrirSelecaoLogo() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file || !file.type.startsWith('image/')) return;
+                document.getElementById('logoInput').value = URL.createObjectURL(file);
+                testarMidia('logo');
+            };
+            input.click();
+        }
+
+        // --- INICIAR MONITOR ---
+        function iniciarMonitor() {
+            if (ofertasAtuais.length === 0) return alert("⚠️ Adicione cortes antes de iniciar a TV.");
+            document.getElementById('admin-panel').style.display = 'none';
+            document.getElementById('monitor').style.display = 'block';
+            document.getElementById('monitor-data').innerText = new Date().toLocaleDateString('pt-BR');
+            document.getElementById('mon-titulo-tipo').innerText = document.getElementById('filtroTipo').value.toUpperCase();
+            cicloMonitor();
+        }
+
+        // --- CICLO DE EXIBIÇÃO ---
+        function cicloMonitor() {
+            document.getElementById('mon-grid').innerHTML = "";
+            const inicio = indiceAtual * 4;
+            const fim = Math.min(inicio + 4, ofertasAtuais.length);
+            if (inicio >= ofertasAtuais.length) {
+                mostrarVideo();
+                return;
+            }
+            for (let i = inicio; i < fim; i++) {
+                const item = ofertasAtuais[i];
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<h3>${item.nome}</h3><div class="preco"><span>R$</span><span class="preco-valor">${item.preco}</span></div>`;
+                document.getElementById('mon-grid').appendChild(card);
+            }
+            indiceAtual++;
+            setTimeout(cicloMonitor, TEMPO_EXIBICAO);
+        }
+
+        // --- MOSTRAR VÍDEO (CORRIGIDO) ---
+        function mostrarVideo() {
+            const v = document.getElementById('monitor-video');
+            let videoPath = document.getElementById('videoInput').value.trim();
+            if (!videoPath) {
+                alert("⚠️ Nenhum caminho definido para o vídeo.");
+                cicloMonitor();
+                return;
+            }
+            v.src = videoPath;
+            v.style.display = 'block';
+            v.onerror = () => {
+                console.error("❌ Falha ao carregar vídeo:", videoPath);
+                alert(`❌ Erro ao carregar vídeo:\nCaminho: ${videoPath}\nVerifique se o arquivo existe e é MP4.`);
+                v.style.display = 'none';
+                cicloMonitor();
+            };
+            v.onloadeddata = () => v.play().catch(() => {});
+            v.onended = () => {
+                v.style.display = 'none';
+                indiceAtual = 0;
+                cicloMonitor();
+            };
+        }
+
+        // --- REPRODUZIR NA PRÉVIA ---
+        function reproduzirVideoNoMonitor() {
+            const v = document.getElementById('preview-video');
+            if (v.paused) v.play().catch(() => alert("⚠️ Vídeo não reproduzível."));
+            else v.pause();
+        }
+
+        // --- SAIR COM ESC ---
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && document.getElementById('monitor').style.display === 'block') {
+                document.getElementById('monitor').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+            }
+        });
+
+        // --- INICIALIZAÇÃO ---
+        window.onload = () => {
+            // Garantir caminhos padrão
+            const videoInput = document.getElementById('videoInput');
+            const fundoInput = document.getElementById('fundoInput');
+            const logoInput = document.getElementById('logoInput');
+            if (!videoInput.value.trim()) videoInput.value = "assets/videos/churras.mp4";
+            if (!fundoInput.value.trim()) fundoInput.value = "assets/images/fundo.jpg";
+            if (!logoInput.value.trim()) logoInput.value = "assets/logo.png";
+
+            carregarLocalmente();
+            baixarDados();
+            document.getElementById('admin-panel').style.display = 'block';
+            document.getElementById('monitor').style.display = 'none';
+        };
+    </script>
+</body>
+</html>
